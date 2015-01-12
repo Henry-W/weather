@@ -70,12 +70,12 @@ function weather_submission_form_func($form, &$form_state) {
   );
 
   $form['#attached']['css'] = array(
-    drupal_get_path('module', 'weather') . '/weather.css',
+    drupal_get_path('module', 'weather') . '/css/weather.css',
   );
 
   $form['#attached']['js'] = array(
-    drupal_get_path('module', 'weather') . '/jquery-2.1.3.min.js',
-    drupal_get_path('module', 'weather') . '/weather.js',
+    drupal_get_path('module', 'weather') . '/js/jquery-2.1.3.min.js',
+    drupal_get_path('module', 'weather') . '/js/weather.js',
   );
 
   return $form;

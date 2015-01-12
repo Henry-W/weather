@@ -10,21 +10,15 @@ function weather_menu() {
     'title' => 'Weather Module Settings',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('weather_admin_settings_form'),
-    'file' => 'weather.admin.inc',
+    'file' => 'includes/weather.admin.inc',
     'access arguments' => array('administer site configuration'),
   );
 
   $items['weather/form'] = array(
     'title' => 'Weather Submission Form',
     'page callback' => 'weather_submission_form',
-    'file' => 'weather.form.inc',
+    'file' => 'includes/weather.form.inc',
     'access arguments' => array('administer site configuration'),
-  );
-
-  $items['weather/result'] = array(
-    'title' => 'Weather Results',
-    'page callback' => 'weather_result',
-    'file' => 'weather.result.inc',
   );
 
   return $items;
