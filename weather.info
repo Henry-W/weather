@@ -1,4 +1,4 @@
 name = Weather
 description = A custom module to retrieve weather data
 core = 7.x
-configure = admin/config/content/weather
+configure = admin/config/content/weather/settings
