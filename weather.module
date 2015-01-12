@@ -1,1 +1,31 @@
 <?php
+
+/*
+ * Implements hook_menu().
+ */
+function weather_menu() {
+
+  $items = array();
+
+  $items['admin/config/content/weather/settings'] = array(
+    'title' => 'Weather Module Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('weather_admin_settings_form'),
+    'file' => 'weather.admin.inc',
+    'access arguments' => array('administer site configuration'),
+  );
+
+  $items['weather/form'] = array(
+    'title' => 'Weather Submission Form',
+    'page callback' => 'weather_submission_form',
+    'file' => 'weather.form.inc',
+  );
+
+  $items['weather/result'] = array(
+    'title' => 'Weather Results',
+    'page callback' => 'weather_result',
+    'file' => 'weather.result.inc',
+  );
+
+  return $items;
+}
