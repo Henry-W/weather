@@ -1,0 +1,3 @@
+name = Weather
+description = A custom module to retrieve weather data
+core = 7.x
