@@ -21,5 +21,14 @@ function weather_menu() {
     'access arguments' => array('administer site configuration'),
   );
 
+  $items['weather/results/%'] = array(
+    'title' => 'Weather Results',
+    'page callback' => 'weather_results_show',
+    'page arguments' => array(2),
+    'file' => 'includes/weather.results.inc',
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
   return $items;
 }

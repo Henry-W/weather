@@ -47,13 +47,13 @@ function weather_submission_form_func($form, &$form_state) {
   $form['weather_hourly_reporting'] = array(
     '#type' => 'select',
     '#options' => array(
-      0 => t('1'),
-      1 => t('3'),
-      2 => t('6'),
-      3 => t('12'),
-      4 => t('24'),
+      1 => t('1'),
+      3 => t('3'),
+      6 => t('6'),
+      12 => t('12'),
+      24 => t('24'),
     ),
-    '#default_value' => 1,
+    '#default_value' => 3,
     '#title' => t('Hourly Interval of Reporting'),
     '#required' => TRUE,
   );
@@ -81,30 +81,70 @@ function weather_submission_form_func($form, &$form_state) {
   return $form;
 }
 
-function weather_submission_form_func_submit() {
-//  $data = ''; // Parameters to pass to URL
-//  $options = array(
-//    'method' => 'POST',
-//    'data' => $data, // Parameters
-//    'headers' => array('Content-Type' => 'application/x-www-form-urlencoded'),
-//  );
-//  $weather_data = drupal_http_request('?q=London&format=json&key=ade5f8b9d77a3eb016b7515df6464&num_of_days=5');
+function weather_submission_form_func_submit($form, &$form_state) {
+  $options = "q=" . $form_state['values']['weather_town_city'];
 
-  $data = array(
-    'q' => 'London',
-    'format' => 'json',
-    'key' => 'ade5f8b9d77a3eb016b7515df6464',
-    'num_of_days' => '5',
-  );
+  $options .= "&format=json";
 
-  $options = array(
-    'method' => 'POST',
-    'data' => drupal_http_build_query($data),
-    'timeout' => 15000,
-    'headers' => array('Content-Type' => 'application/x-www-form-urlencoded'),
-  );
+  $options .= "&key=" . variable_get('weather_api_key_field');
 
-  $weather_data = drupal_http_request('http://api.worldweatheronline.com/free/v2/weather.ashx', $options);
+  $options .= "&num_of_days=" . $form_state['values']['weather_days_forecast'];
 
-  dpm($weather_data);
+  $date_selection = $form_state['values']['weather_date'];
+
+  if ($date_selection == 0) {
+    // Today
+    $options .= "&date=today";
+  }
+  elseif ($date_selection == 1) {
+    $options .= "&date=tomorrow";
+  }
+  else {
+    $options .= "&date=" . $form_state['values']['weather_date_custom']['year'] . "-" . $form_state['values']['weather_date_custom']['month'] . "-" . $form_state['values']['weather_date_custom']['day'];
+  }
+
+  $options .= "&tp=" . $form_state['values']['weather_hourly_reporting'];
+
+  if ($form_state['values']['weather_current_conditions']) {
+    $options .= "&cc=yes";
+  }
+  else {
+    $options .= "&cc=no";
+  }
+
+  $cache_options = md5($options);
+
+  $stored_cache = variable_get('weather_api_options_cache_id_' . $cache_options, 'null');
+
+  if ($stored_cache !== 'null') {
+
+    $response = $stored_cache;
+
+    dpm("USING CACHED RESPONSE");
+
+  }
+  else {
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, variable_get('weather_api_url_field') . $options);
+    curl_setopt($ch, CURLOPT_HEADER, 0);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_PROXY, '10.23.12.110:8080');
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    variable_set('weather_api_options_cache_id_' . $cache_options, $response);
+
+    variable_set('weather_api_options_cache_id_num_of_days_' . $cache_options, $form_state['values']['weather_days_forecast']);
+
+    dpm("USING NEW RESPONSE");
+
+  }
+
+  dpm($options);
+
+  dpm($response);
+
+  drupal_goto($GLOBALS['base_url'] . '/weather/results/' . $cache_options);
+
 }
