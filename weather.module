@@ -32,3 +32,12 @@ function weather_menu() {
 
   return $items;
 }
+
+/*
+ * Implements hook_theme().
+ */
+
+function weather_theme() {
+
+
+}

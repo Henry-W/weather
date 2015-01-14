@@ -20,7 +20,7 @@ function weather_results_show($cache_id) {
         ),
         array(
           'Icon',
-          theme_image(array(
+          theme('image', array(
             'path' => $response['data']['current_condition'][0]['weatherIconUrl'][0]['value'],
             'attributes' => NULL
           )),
@@ -65,12 +65,12 @@ function weather_results_show($cache_id) {
 
     $content['weather_current_conditions_table'] = array(
       '#type' => 'markup',
-      '#markup' => theme_table($cc_table),
+      '#markup' => theme('table', $cc_table),
     );
 
     $content['weather_forecast_table'] = array(
       '#type' => 'markup',
-      '#markup' => theme_table($forecast_table),
+      '#markup' => theme('table', $cc_table),
     );
 
     return $content;
