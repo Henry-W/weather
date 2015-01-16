@@ -2,13 +2,11 @@
 
 function weather_results_show($cache_id) {
 
-  if (variable_get('weather_api_options_cache_id_' . $cache_id, 'null') !== 'null') {
+  if (!empty(cache_get('weather_api_options_cache_id_' . $cache_id)->data)) {
     // Show results for legitimate cache
 
     // Get response
-    $response = drupal_json_decode(variable_get('weather_api_options_cache_id_' . $cache_id));
-
-    krumo($response);
+    $response = cache_get('weather_api_options_cache_id_' . $cache_id)->data;
 
     $cc_table = array(
       'header' => array(t('Name'), t('Value from Resultset')),
@@ -44,7 +42,7 @@ function weather_results_show($cache_id) {
     $rows = array();
 
     // Simple row
-    for ($i = 0; $i < variable_get('weather_api_options_cache_id_num_of_days_' . $cache_id); $i++) {
+    for ($i = 0; $i < count($response['data']['weather']); $i++) {
       array_push($rows,
         array(
           date("d/m/y", strtotime($response['data']['weather'][$i]['date'])),
@@ -57,7 +55,7 @@ function weather_results_show($cache_id) {
       'header' => array(t('Date'), t('Min temp (C)'), t('Max temp (C)')),
       'rows' => $rows,
       'attributes' => array(),
-      'caption' => t('Forecast from (' . date("d/m/y", strtotime($response['data']['weather'][0]['date'])) . ') to (' . date("d/m/y", strtotime($response['data']['weather'][variable_get('weather_api_options_cache_id_num_of_days_' . $cache_id) - 1]['date'])) . ')'),
+      'caption' => t('Forecast from (' . date("d/m/y", strtotime($response['data']['weather'][0]['date'])) . ') to (' . date("d/m/y", strtotime($response['data']['weather'][count($response['data']['weather']) - 1]['date'])) . ')'),
       'colgroups' => array(),
       'sticky' => FALSE,
       'empty' => '',
@@ -70,8 +68,54 @@ function weather_results_show($cache_id) {
 
     $content['weather_forecast_table'] = array(
       '#type' => 'markup',
-      '#markup' => theme('table', $cc_table),
+      '#markup' => theme('table', $forecast_table),
     );
+
+    for ($i = 0; $i < count($response['data']['weather']); $i++) {
+
+      $response_day = $response['data']['weather'][$i];
+
+      $variables = $response_day;
+
+      $variables['date_correct'] = format_date(strtotime($variables['date']), 'custom', 'd/m/Y');
+
+      // Set sunrise
+      $variables['sunrise'] = $response_day['astronomy'][0]['sunrise'];
+      // Set sunset
+      $variables['sunset'] = $response_day['astronomy'][0]['sunset'];
+      $variables['before_sunrise_hours'] = array();
+      $variables['before_sunset_hours'] = array();
+      $variables['after_sunset_hours'] = array();
+      // Get hours before sunset into array
+      foreach ($variables['hourly'] as $hour) {
+        $hour['weather_image'] = theme('image', array(
+          'path' => $hour['weatherIconUrl'][0]['value'],
+          'attributes' => NULL
+        ));
+        if (strlen($hour['time']) < 4 && strlen($hour['time']) > 1) {
+          $hour['time'] = '0' . $hour['time'];
+        }
+        elseif (strlen($hour['time']) == 1) {
+          $hour['time'] = '000' . $hour['time'];
+        }
+        $hour['time_formatted'] = format_date(strtotime($hour['time']), 'custom', 'h:i A');
+        if (strtotime($hour['time']) < strtotime($variables['sunrise'])) {
+          array_push($variables['before_sunrise_hours'], $hour);
+        }
+        elseif (strtotime($hour['time']) < strtotime($variables['sunset'])) {
+          array_push($variables['before_sunset_hours'], $hour);
+        }
+        else {
+          array_push($variables['after_sunset_hours'], $hour);
+        }
+      }
+
+      $content['weather_forecast_day_' . $i] = array(
+        '#type' => 'markup',
+        '#markup' => theme('weather_forecast_day', $variables),
+      );
+
+    }
 
     return $content;
 

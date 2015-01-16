@@ -1,0 +1,28 @@
+<?php
+/*
+ * Implements hook_install().
+ */
+function weather_install() {
+
+  module_load_include('inc', 'weather', 'includes/weather.weather_log_entry.field_base');
+
+  $field_bases = weather_field_default_field_bases();
+
+  foreach ($field_bases as $field_info) {
+    $existing_field = field_read_field($field_info['field_name'], array('include_inactive' => TRUE));
+    if (!$existing_field) {
+      field_create_field($field_info);
+    }
+  }
+
+  module_load_include('inc', 'weather', 'includes/weather.weather_log_entry.field_instance');
+  $field_instances = weather_field_default_field_instances();
+  foreach ($field_instances as $instance) {
+    $existing_field = field_info_instance('node', $instance['field_name'], $instance['bundle']);
+    if (!$existing_field) {
+      field_create_instance($instance);
+    }
+  }
+
+
+}

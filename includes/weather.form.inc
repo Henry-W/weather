@@ -64,6 +64,12 @@ function weather_submission_form_func($form, &$form_state) {
     '#default_value' => TRUE,
   );
 
+  $form['save_weather'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Save weather forecast'),
+    '#default_value' => TRUE,
+  );
+
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => 'Submit',
@@ -82,69 +88,118 @@ function weather_submission_form_func($form, &$form_state) {
 }
 
 function weather_submission_form_func_submit($form, &$form_state) {
-  $options = "q=" . $form_state['values']['weather_town_city'];
 
-  $options .= "&format=json";
+  $decoded_response = weather_make_request($form_state);
 
-  $options .= "&key=" . variable_get('weather_api_key_field');
+  if ($form_state['values']['save_weather'] == TRUE) {
 
-  $options .= "&num_of_days=" . $form_state['values']['weather_days_forecast'];
+    for ($i = 0; $i < count($decoded_response['data']['weather']); $i++) {
+      $node = new stdClass();
+      $node->type = 'weather_log_entry';
+      $node->title = "Weather for " . $decoded_response['data']['request'][0]['query'];
+      $node->language = LANGUAGE_NONE;
+      // Weather Summary
+      $node->body[$node->language][0]['value'] = "On " . $decoded_response['data']['weather'][$i]['date'] . " the temperature for " . $decoded_response['data']['request'][0]['query'] . "; As low as " . $decoded_response['data']['weather'][$i]['mintempC'] . " (C) and as high as " . $decoded_response['data']['weather'][$i]['maxtempC'] . " (C)";
+      // Weather Icon
+      $external_image_path = $decoded_response['data']['weather'][$i]['hourly'][0]['weatherIconUrl'][0]['value'];
+      $image = file_get_contents_curl($external_image_path); // string
+      $file = file_save_data($image, NULL, FILE_EXISTS_REPLACE);
+      $node->field_weather_icon[$node->language][0]['fid'] = $file->fid;
+      // Sunrise
+      $node->field_sunrise[$node->language][0]['value'] = $decoded_response['data']['weather'][$i]['astronomy'][0]['sunrise'];
+      // Sunset
+      $node->field_sunset[$node->language][0]['value'] = $decoded_response['data']['weather'][$i]['astronomy'][0]['sunset'];
+      // Date
+      $node->field_date[$node->language][0]['value'] = format_date(strtotime($decoded_response['data']['weather'][$i]['date']), 'custom', 'd/m/Y');
+      // Location
+      $term_boolean = FALSE;
+      do {
+        $search_terms = taxonomy_get_term_by_name($form_state['values']['weather_town_city']);
+        if ($search_terms) {
+          // Term already exists, but from which vocabulary??
+          foreach ($search_terms as $term) {
+            if ($term->vid == 2) {
+              $node->field_location[$node->language][]['tid'] = $term->tid;
+              $term_boolean = TRUE;
+            }
+            else {
+              // Term exists for wrong vocabulary, make a new one for this one:
+              $existing_term_new_vocab = array(
+                'vid' => 2,
+                'name' => $form_state['values']['weather_town_city'],
+                // You can optionally also set id of parent term, e.g. 'parent' => 25
+              );
+              $existing_term_new_vocab = (object) $existing_term_new_vocab;
+              taxonomy_term_save($existing_term_new_vocab);
+              $term_boolean = FALSE;
+            }
+          }
+        }
+        else {
+          // Term does not already exist, make a new one:
+          $new_term = array(
+            'vid' => 2,
+            'name' => $form_state['values']['weather_town_city'],
+            // You can optionally also set id of parent term, e.g. 'parent' => 25
+          );
+          $new_term = (object) $new_term;
+          taxonomy_term_save($new_term);
+          $term_boolean = FALSE;
+        }
+      }
+      while ($term_boolean == FALSE);
+      // Node meta
+      $node->uid = 1;
+      $path = 'node_created_on' . date('YmdHis');
+      $node->path = array('alias' => $path);
+      // Verify not already saved
+      $already_exists = FALSE;
 
-  $date_selection = $form_state['values']['weather_date'];
+      foreach (taxonomy_get_tree(2) as $term) {
 
-  if ($date_selection == 0) {
-    // Today
-    $options .= "&date=today";
+        foreach (array_reverse(taxonomy_select_nodes($term->tid)) as $eachnode) {
+          $node_data = node_load($eachnode);
+          $term_retrieve_by_name = taxonomy_get_term_by_name($form_state['values']['weather_town_city']);
+          $term_retrieve = array_shift($term_retrieve_by_name);
+          if ($node_data->field_date['und'][0]['value'] == $node->field_date[$node->language][0]['value'] && $node_data->field_location['und'][0]['tid'] == $term_retrieve->tid) {
+            $already_exists = TRUE;
+          }
+        }
+
+      }
+
+      echo $already_exists;
+
+      // Save node
+      if ($already_exists == FALSE) {
+        if ($node = node_submit($node)) { // Prepare node for saving
+          node_save($node);
+          drupal_set_message(t('The forecast for ' . $term_retrieve->name . ' on ' . $node->field_date[$node->language][0]['value'] . ' has successfully been saved.'), 'status');
+        }
+      }
+      else {
+        drupal_set_message(t('The forecast for ' . $term_retrieve->name . ' on ' . $node->field_date[$node->language][0]['value'] . ' could not be saved since it has already been saved before.'), 'error');
+      }
+    }
+
   }
-  elseif ($date_selection == 1) {
-    $options .= "&date=tomorrow";
-  }
-  else {
-    $options .= "&date=" . $form_state['values']['weather_date_custom']['year'] . "-" . $form_state['values']['weather_date_custom']['month'] . "-" . $form_state['values']['weather_date_custom']['day'];
-  }
 
-  $options .= "&tp=" . $form_state['values']['weather_hourly_reporting'];
+  drupal_goto($GLOBALS['base_url'] . '/weather/results/' . $decoded_response['options_cache_id']);
 
-  if ($form_state['values']['weather_current_conditions']) {
-    $options .= "&cc=yes";
-  }
-  else {
-    $options .= "&cc=no";
-  }
+}
 
-  $cache_options = md5($options);
+function file_get_contents_curl($url) {
+  $ch = curl_init();
 
-  $stored_cache = variable_get('weather_api_options_cache_id_' . $cache_options, 'null');
+  curl_setopt($ch, CURLOPT_AUTOREFERER, TRUE);
+  curl_setopt($ch, CURLOPT_HEADER, 0);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+  curl_setopt($ch, CURLOPT_URL, $url);
+  curl_setopt($ch, CURLOPT_FOLLOWLOCATION, TRUE);
+  curl_setopt($ch, CURLOPT_PROXY, '10.23.12.110:8080');
 
-  if ($stored_cache !== 'null') {
+  $data = curl_exec($ch);
+  curl_close($ch);
 
-    $response = $stored_cache;
-
-    dpm("USING CACHED RESPONSE");
-
-  }
-  else {
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, variable_get('weather_api_url_field') . $options);
-    curl_setopt($ch, CURLOPT_HEADER, 0);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_PROXY, '10.23.12.110:8080');
-    $response = curl_exec($ch);
-    curl_close($ch);
-
-    variable_set('weather_api_options_cache_id_' . $cache_options, $response);
-
-    variable_set('weather_api_options_cache_id_num_of_days_' . $cache_options, $form_state['values']['weather_days_forecast']);
-
-    dpm("USING NEW RESPONSE");
-
-  }
-
-  dpm($options);
-
-  dpm($response);
-
-  drupal_goto($GLOBALS['base_url'] . '/weather/results/' . $cache_options);
-
+  return $data;
 }

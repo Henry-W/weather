@@ -30,6 +30,21 @@ function weather_menu() {
     'type' => MENU_NORMAL_ITEM,
   );
 
+  $items['weather/saved'] = array(
+    'title' => 'Weather Forecasts',
+    'page callback' => 'weather_saved_forecasts',
+    'file' => 'includes/weather.saved.inc',
+    'access arguments' => array('administer site configuration'),
+  );
+
+  $items['weather/single/%'] = array(
+    'title' => 'Weather Forecast',
+    'page callback' => 'weather_forecast_single',
+    'page arguments' => array(2),
+    'file' => 'includes/weather.single.inc',
+    'access arguments' => array('administer site configuration'),
+  );
+
   return $items;
 }
 
@@ -38,6 +53,112 @@ function weather_menu() {
  */
 
 function weather_theme() {
+  return array(
+    'weather_forecast_day' => array(
+      'template' => 'templates/weather_forecast_day',
+      'variables' => array('data' => NULL),
+    ),
+    'weather_forecast_single' => array(
+      'template' => 'templates/weather_forecast_single',
+      'variables' => array('data' => NULL),
+    )
+  );
+}
 
+/*
+ * Implements hook_node_info().
+ */
+function weather_node_info() {
+  $items = array(
+    'weather_log_entry' => array(
+      'name' => t('Weather Log Entry'),
+      'base' => 'node_content',
+      'description' => '',
+      'has_title' => '1',
+      'title_label' => t('Title'),
+      'help' => '',
+    ),
+  );
+  return $items;
+}
 
+/*
+ * Implements hook_node_view().
+ */
+function weather_node_view($node) {
+
+  $sunrise = $node->field_sunrise['und'][0]['value'];
+  $sunset = $node->field_sunset['und'][0]['value'];
+  $hours_diff = strtotime($sunset) - strtotime($sunrise);
+  $hours_of_daylight = gmdate('G', $hours_diff) . " hours and " . gmdate('i', $hours_diff) . " minutes";
+
+  $node->content['hours_of_daylight'] = array(
+    '#type' => 'markup',
+    '#markup' => $hours_of_daylight,
+    '#title' => 'Hours of daylight',
+  );
+
+}
+
+function weather_make_request(&$form_state) {
+  $options = "q=" . $form_state['values']['weather_town_city'];
+
+  $options .= "&format=json";
+
+  $options .= "&key=" . variable_get('weather_api_key_field');
+
+  $options .= "&num_of_days=" . $form_state['values']['weather_days_forecast'];
+
+  $date_selection = $form_state['values']['weather_date'];
+
+  if ($date_selection == 0) {
+    // Today
+    $options .= "&date=today";
+  }
+  elseif ($date_selection == 1) {
+    $options .= "&date=tomorrow";
+  }
+  else {
+    $options .= "&date=" . $form_state['values']['weather_date_custom']['year'] . "-" . $form_state['values']['weather_date_custom']['month'] . "-" . $form_state['values']['weather_date_custom']['day'];
+  }
+
+  $options .= "&tp=" . $form_state['values']['weather_hourly_reporting'];
+
+  if ($form_state['values']['weather_current_conditions']) {
+    $options .= "&cc=yes";
+  }
+  else {
+    $options .= "&cc=no";
+  }
+
+  $cache_options = md5($options);
+
+  if (!empty(cache_get('weather_api_options_cache_id_' . $cache_options)->data)) {
+
+    $response = cache_get('weather_api_options_cache_id_' . $cache_options)->data;
+
+  }
+  else {
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, variable_get('weather_api_url_field') . $options);
+    curl_setopt($ch, CURLOPT_HEADER, 0);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_PROXY, '10.23.12.110:8080');
+    $response_init = curl_exec($ch);
+    curl_close($ch);
+
+    $response = drupal_json_decode($response_init);
+
+    cache_set('weather_api_options_cache_id_' . $cache_options, $response);
+
+    cache_set('weather_api_options_cache_id_num_of_days_' . $cache_options, $form_state['values']['weather_days_forecast']);
+
+  }
+
+  $response['options_cache_id'] = $cache_options;
+
+  krumo($response);
+
+  return $response;
 }
