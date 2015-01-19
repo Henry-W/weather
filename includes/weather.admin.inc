@@ -18,6 +18,14 @@ function weather_admin_settings_form($form, &$form_state) {
     '#required' => TRUE,
   );
 
+  $form['weather_api_past_url_field'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Past Weather API URL'),
+    '#default_value' => t(variable_get('weather_api_past_url_field')),
+    '#description' => t('Please enter the API URL to use.'),
+    '#required' => TRUE,
+  );
+
   $form['weather_api_key_field'] = array(
     '#type' => 'textfield',
     '#title' => t('Weather API Key'),

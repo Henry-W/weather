@@ -34,6 +34,7 @@ function weather_submission_form_func($form, &$form_state) {
   $form['weather_date_custom'] = array(
     '#type' => 'date',
     '#title' => t('Choose Date'),
+    '#element_validate' => array('weather_limit_years_in_date_callback'),
   );
 
   $form['weather_days_forecast'] = array(
@@ -89,7 +90,7 @@ function weather_submission_form_func($form, &$form_state) {
 
 function weather_submission_form_func_submit($form, &$form_state) {
 
-  $decoded_response = weather_make_request($form_state);
+  $decoded_response = weather_make_request($form_state, 'future');
 
   if ($form_state['values']['save_weather'] == TRUE) {
 
@@ -202,4 +203,11 @@ function file_get_contents_curl($url) {
   curl_close($ch);
 
   return $data;
+}
+
+function weather_limit_years_in_date_callback($form, &$form_state) {
+  $input_date = strtotime($form_state['values']['weather_date_custom']['day'] . '-' . $form_state['values']['weather_date_custom']['month'] . '-' . $form_state['values']['weather_date_custom']['year']);
+  if ($input_date > strtotime("+4 days")) {
+    form_set_error('weather_date_custom', t('You can only enter a date between now and the next 4 days.'));
+  }
 }

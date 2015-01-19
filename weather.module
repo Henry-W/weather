@@ -100,16 +100,143 @@ function weather_node_view($node) {
 
 }
 
-function weather_make_request(&$form_state) {
-  $options = "q=" . $form_state['values']['weather_town_city'];
+/*
+ * Implements hook_block_info().
+ */
+function weather_block_info() {
+  $blocks['weather_yesterday'] = array(
+    'info' => t('Weather Module Yesterday'),
+    'status' => 1
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_info_alter().
+ */
+function weather_block_info_alter(&$blocks, $theme, $code_blocks) {
+  if (isset($blocks['weather']['weather_yesterday'])) {
+    $blocks['weather']['weather_yesterday']['region'] = 'sidebar_second';
+  }
+}
+
+/*
+ * Implements hook_block_view().
+ */
+function weather_block_view($delta = '') {
+  // This example is adapted from node.module.
+  $block = array();
+
+  switch ($delta) {
+    case 'weather_yesterday':
+      // To be done:
+      // Load node object for yesterday and show weather or run make request function to get data
+      $today_date = menu_get_object()->field_date[LANGUAGE_NONE][0]['value'];
+
+      $yesterday = strtotime("-1 day", strtotime(get_date_hyphen($today_date)));
+
+      // Find yesterday's node
+
+      $yesterday_query = new EntityFieldQuery();
+
+      $yesterday_query->entityCondition('entity_type', 'node')
+        ->entityCondition('bundle', 'weather_log_entry')
+        ->fieldCondition('field_date', 'value', format_date($yesterday, 'custom', 'd/m/Y'), '=')
+        ->fieldCondition('field_location', 'tid', menu_get_object()->field_location[LANGUAGE_NONE][0]['tid'], '=');
+
+      $yesterday_query_result = $yesterday_query->execute();
+
+      if (isset($yesterday_query_result['node'])) {
+        $yesterday_array_shift = array_shift($yesterday_query_result);
+
+        $yesterday_node_id = array_shift($yesterday_array_shift)->nid;
+
+        $yesterday_node_data = node_load($yesterday_node_id);
+
+//        dpm($yesterday_node_data);
+
+        $hours_of_daylight = calculate_hours_daylight($yesterday_node_id);
+
+        $hours_of_daylight_formatted = gmdate("G", $hours_of_daylight) . ' hours and ' . gmdate("i", $hours_of_daylight) . ' minutes';
+        $yesterday_image = theme('image', array(
+          'path' => $yesterday_node_data->field_weather_icon[LANGUAGE_NONE][0]['uri'],
+          'attributes' => NULL
+        ));
+      }
+      else {
+        $form_state = array();
+        $current_node_loc_tid = menu_get_object()->field_location[LANGUAGE_NONE][0]['tid'];
+        $form_state['values']['weather_town_city'] = taxonomy_term_load($current_node_loc_tid)->name;
+        $form_state['values']['weather_days_forecast'] = 5;
+        $form_state['values']['weather_date'] = 2;
+        $form_state['values']['weather_date_custom']['year'] = format_date($yesterday, 'custom', 'Y');
+        $form_state['values']['weather_date_custom']['month'] = format_date($yesterday, 'custom', 'm');
+        $form_state['values']['weather_date_custom']['day'] = format_date($yesterday, 'custom', 'd');
+        $form_state['values']['weather_current_conditions'] = TRUE;
+        $form_state['values']['weather_hourly_reporting'] = 3;
+        if ($yesterday > strtotime("-2 days")) {
+          $new_request_response = weather_make_request($form_state, 'past');
+        }
+        else {
+          $new_request_response = weather_make_request($form_state, 'future');
+        }
+        dpm($new_request_response);
+        dpm($form_state);
+        $yesterday_image = theme('image', array(
+          'path' => $new_request_response['data']['weather'][0]['hourly'][0]['weatherIconUrl'][0]['value'],
+          'attributes' => NULL
+        ));
+        if (isset($new_request_response['data']['weather'])) {
+//          $sunrise = $new_request_response['data']['weather'];
+        }
+        else {
+
+        }
+      }
+
+      $block['subject'] = t('Yesterday\'s ' . menu_get_object()->title);
+//      $block['content'] = array(
+//        '#markup' => $yesterday_image . '<br />Sunrise: ' . $yesterday_node_data->field_sunrise[LANGUAGE_NONE][0]['value'] . '<br />
+//                    Sunset: ' . $yesterday_node_data->field_sunset[LANGUAGE_NONE][0]['value'] . '<br />
+//                    Hours of daylight: ' . $hours_of_daylight_formatted,
+//      );
+      break;
+  }
+
+  return $block;
+}
+
+/*
+ * Global functions
+ */
+
+function weather_make_request(&$form_state, $past_or_future) {
+  $location_name = $form_state['values']['weather_town_city'];
+  $days_to_forecast = $form_state['values']['weather_days_forecast'];
+  $api_key = variable_get('weather_api_key_field');
+  if ($past_or_future == 'past') {
+    $api_url = variable_get('weather_api_past_url_field');
+  }
+  else {
+    $api_url = variable_get('weather_api_url_field');
+  }
+  $date_selection = $form_state['values']['weather_date'];
+  $date_year = $form_state['values']['weather_date_custom']['year'];
+  $date_month = $form_state['values']['weather_date_custom']['month'];
+  $date_day = $form_state['values']['weather_date_custom']['day'];
+  $current_conditions = $form_state['values']['weather_current_conditions'];
+  $hourly_intervals = $form_state['values']['weather_hourly_reporting'];
+
+  $options = "q=" . $location_name;
 
   $options .= "&format=json";
 
-  $options .= "&key=" . variable_get('weather_api_key_field');
+  $options .= "&key=" . $api_key;
 
-  $options .= "&num_of_days=" . $form_state['values']['weather_days_forecast'];
+  $options .= "&num_of_days=" . $days_to_forecast;
 
-  $date_selection = $form_state['values']['weather_date'];
+  $date_selection = $date_selection;
 
   if ($date_selection == 0) {
     // Today
@@ -119,12 +246,12 @@ function weather_make_request(&$form_state) {
     $options .= "&date=tomorrow";
   }
   else {
-    $options .= "&date=" . $form_state['values']['weather_date_custom']['year'] . "-" . $form_state['values']['weather_date_custom']['month'] . "-" . $form_state['values']['weather_date_custom']['day'];
+    $options .= "&date=" . $date_year . "-" . $date_month . "-" . $date_day;
   }
 
-  $options .= "&tp=" . $form_state['values']['weather_hourly_reporting'];
+  $options .= "&tp=" . $hourly_intervals;
 
-  if ($form_state['values']['weather_current_conditions']) {
+  if ($current_conditions) {
     $options .= "&cc=yes";
   }
   else {
@@ -141,7 +268,7 @@ function weather_make_request(&$form_state) {
   else {
 
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, variable_get('weather_api_url_field') . $options);
+    curl_setopt($ch, CURLOPT_URL, $api_url . $options);
     curl_setopt($ch, CURLOPT_HEADER, 0);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_PROXY, '10.23.12.110:8080');
@@ -152,7 +279,7 @@ function weather_make_request(&$form_state) {
 
     cache_set('weather_api_options_cache_id_' . $cache_options, $response);
 
-    cache_set('weather_api_options_cache_id_num_of_days_' . $cache_options, $form_state['values']['weather_days_forecast']);
+    cache_set('weather_api_options_cache_id_num_of_days_' . $cache_options, $days_to_forecast);
 
   }
 
@@ -161,4 +288,19 @@ function weather_make_request(&$form_state) {
   krumo($response);
 
   return $response;
+}
+
+function get_date_hyphen($input) {
+
+  // Expects input format to be d/m/Y e.g 01/01/2015
+
+  return str_replace('/', '-', $input);
+
+}
+
+function calculate_hours_daylight($node_id) {
+  $node = node_load($node_id);
+  $sunrise = $node->field_sunrise[LANGUAGE_NONE][0]['value'];
+  $sunset = $node->field_sunset[LANGUAGE_NONE][0]['value'];
+  return strtotime($sunset) - strtotime($sunrise);
 }

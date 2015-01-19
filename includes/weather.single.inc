@@ -5,9 +5,9 @@ function weather_forecast_single($node_id) {
   $node_data = node_load($node_id);
 
   // Work out total hours of daylight
-  $sunrise = $node_data->field_sunrise['und'][0]['value'];
-  $sunset = $node_data->field_sunset['und'][0]['value'];
-  $hours_diff = strtotime($sunset) - strtotime($sunrise);
+  $sunrise = $node_data->field_sunrise[LANGUAGE_NONE][0]['value'];
+  $sunset = $node_data->field_sunset[LANGUAGE_NONE][0]['value'];
+  $hours_diff = calculate_hours_daylight($node_id);
   $hours_of_daylight = gmdate("G", $hours_diff) . ' hours and ' . gmdate("i", $hours_diff) . ' minutes';
 
   $cc_table = array(
