@@ -109,6 +109,11 @@ function weather_block_info() {
     'status' => 1
   );
 
+  $blocks['weather_tomorrow'] = array(
+    'info' => t('Weather Module Tomorrow'),
+    'status' => 1
+  );
+
   return $blocks;
 }
 
@@ -118,6 +123,9 @@ function weather_block_info() {
 function weather_block_info_alter(&$blocks, $theme, $code_blocks) {
   if (isset($blocks['weather']['weather_yesterday'])) {
     $blocks['weather']['weather_yesterday']['region'] = 'sidebar_second';
+  }
+  if (isset($blocks['weather']['weather_tomorrow'])) {
+    $blocks['weather']['weather_tomorrow']['region'] = 'sidebar_second';
   }
 }
 
@@ -130,8 +138,6 @@ function weather_block_view($delta = '') {
 
   switch ($delta) {
     case 'weather_yesterday':
-      // To be done:
-      // Load node object for yesterday and show weather or run make request function to get data
       $today_date = menu_get_object()->field_date[LANGUAGE_NONE][0]['value'];
 
       $yesterday = strtotime("-1 day", strtotime(get_date_hyphen($today_date)));
@@ -154,8 +160,6 @@ function weather_block_view($delta = '') {
 
         $yesterday_node_data = node_load($yesterday_node_id);
 
-//        dpm($yesterday_node_data);
-
         $hours_of_daylight = calculate_hours_daylight($yesterday_node_id);
 
         $hours_of_daylight_formatted = gmdate("G", $hours_of_daylight) . ' hours and ' . gmdate("i", $hours_of_daylight) . ' minutes';
@@ -163,44 +167,124 @@ function weather_block_view($delta = '') {
           'path' => $yesterday_node_data->field_weather_icon[LANGUAGE_NONE][0]['uri'],
           'attributes' => NULL
         ));
+        $yesterday_sunrise = $yesterday_node_data->field_sunrise[LANGUAGE_NONE][0]['value'];
+        $yesterday_sunset = $yesterday_node_data->field_sunset[LANGUAGE_NONE][0]['value'];
       }
       else {
+        // We need to create a request - Since yesterday has not been stored
         $form_state = array();
         $current_node_loc_tid = menu_get_object()->field_location[LANGUAGE_NONE][0]['tid'];
         $form_state['values']['weather_town_city'] = taxonomy_term_load($current_node_loc_tid)->name;
-        $form_state['values']['weather_days_forecast'] = 5;
+        $form_state['values']['weather_days_forecast'] = 1;
         $form_state['values']['weather_date'] = 2;
         $form_state['values']['weather_date_custom']['year'] = format_date($yesterday, 'custom', 'Y');
         $form_state['values']['weather_date_custom']['month'] = format_date($yesterday, 'custom', 'm');
         $form_state['values']['weather_date_custom']['day'] = format_date($yesterday, 'custom', 'd');
         $form_state['values']['weather_current_conditions'] = TRUE;
         $form_state['values']['weather_hourly_reporting'] = 3;
-        if ($yesterday > strtotime("-2 days")) {
+        // First check which API to use
+        // Current Weather API only has coverage for:
+        // 2 days before now -> 4 days after now
+        // Past Weather API has coverage for:
+        // More than 2 days before now
+        if ($yesterday < strtotime("-2 days")) {
+          // Is yesterday a longer time ago than 2 days before now? If yes, use the Past Weather API
           $new_request_response = weather_make_request($form_state, 'past');
         }
         else {
+          // Is yesterday in the future or nearer than 2 before now? If yes, use the Current Weather API
           $new_request_response = weather_make_request($form_state, 'future');
         }
-        dpm($new_request_response);
-        dpm($form_state);
         $yesterday_image = theme('image', array(
           'path' => $new_request_response['data']['weather'][0]['hourly'][0]['weatherIconUrl'][0]['value'],
           'attributes' => NULL
         ));
-        if (isset($new_request_response['data']['weather'])) {
-//          $sunrise = $new_request_response['data']['weather'];
-        }
-        else {
-
-        }
+        $yesterday_sunrise = $new_request_response['data']['weather'][0]['astronomy'][0]['sunrise'];
+        $yesterday_sunset = $new_request_response['data']['weather'][0]['astronomy'][0]['sunset'];
+        $hours_of_daylight = calculate_hours_daylight_v($yesterday_sunrise, $yesterday_sunset);
+        $hours_of_daylight_formatted = gmdate("G", $hours_of_daylight) . ' hours and ' . gmdate("i", $hours_of_daylight) . ' minutes';
       }
 
-      $block['subject'] = t('Yesterday\'s ' . menu_get_object()->title);
-//      $block['content'] = array(
-//        '#markup' => $yesterday_image . '<br />Sunrise: ' . $yesterday_node_data->field_sunrise[LANGUAGE_NONE][0]['value'] . '<br />
-//                    Sunset: ' . $yesterday_node_data->field_sunset[LANGUAGE_NONE][0]['value'] . '<br />
-//                    Hours of daylight: ' . $hours_of_daylight_formatted,
-//      );
+      $block['subject'] = t('Yesterday\'s ' . menu_get_object()->title . ' (' . format_date($yesterday, 'custom', 'd/m/Y') . ')');
+      $block['content'] = array(
+        '#markup' => $yesterday_image . '<br />Sunrise: ' . $yesterday_sunrise . '<br />
+                    Sunset: ' . $yesterday_sunset . '<br />
+                    Hours of daylight: ' . $hours_of_daylight_formatted,
+      );
+      break;
+    case 'weather_tomorrow':
+      $today_date = menu_get_object()->field_date[LANGUAGE_NONE][0]['value'];
+
+      $tomorrow = strtotime("+1 day", strtotime(get_date_hyphen($today_date)));
+
+      // Find yesterday's node
+
+      $tomorrow_query = new EntityFieldQuery();
+
+      $tomorrow_query->entityCondition('entity_type', 'node')
+        ->entityCondition('bundle', 'weather_log_entry')
+        ->fieldCondition('field_date', 'value', format_date($tomorrow, 'custom', 'd/m/Y'), '=')
+        ->fieldCondition('field_location', 'tid', menu_get_object()->field_location[LANGUAGE_NONE][0]['tid'], '=');
+
+      $tomorrow_query_result = $tomorrow_query->execute();
+
+      if (isset($tomorrow_query_result['node'])) {
+        $tomorrow_array_shift = array_shift($tomorrow_query_result);
+
+        $tomorrow_node_id = array_shift($tomorrow_array_shift)->nid;
+
+        $tomorrow_node_data = node_load($tomorrow_node_id);
+
+        $hours_of_daylight = calculate_hours_daylight($tomorrow_node_id);
+
+        $hours_of_daylight_formatted = gmdate("G", $hours_of_daylight) . ' hours and ' . gmdate("i", $hours_of_daylight) . ' minutes';
+        $tomorrow_image = theme('image', array(
+          'path' => $tomorrow_node_data->field_weather_icon[LANGUAGE_NONE][0]['uri'],
+          'attributes' => NULL
+        ));
+        $tomorrow_sunrise = $tomorrow_node_data->field_sunrise[LANGUAGE_NONE][0]['value'];
+        $tomorrow_sunset = $tomorrow_node_data->field_sunset[LANGUAGE_NONE][0]['value'];
+      }
+      else {
+        // We need to create a request - Since yesterday has not been stored
+        $form_state = array();
+        $current_node_loc_tid = menu_get_object()->field_location[LANGUAGE_NONE][0]['tid'];
+        $form_state['values']['weather_town_city'] = taxonomy_term_load($current_node_loc_tid)->name;
+        $form_state['values']['weather_days_forecast'] = 1;
+        $form_state['values']['weather_date'] = 2;
+        $form_state['values']['weather_date_custom']['year'] = format_date($tomorrow, 'custom', 'Y');
+        $form_state['values']['weather_date_custom']['month'] = format_date($tomorrow, 'custom', 'm');
+        $form_state['values']['weather_date_custom']['day'] = format_date($tomorrow, 'custom', 'd');
+        $form_state['values']['weather_current_conditions'] = TRUE;
+        $form_state['values']['weather_hourly_reporting'] = 3;
+        // First check which API to use
+        // Current Weather API only has coverage for:
+        // 2 days before now -> 4 days after now
+        // Past Weather API has coverage for:
+        // More than 2 days before now
+        if ($tomorrow < strtotime("-2 days")) {
+          // Is yesterday a longer time ago than 2 days before now? If yes, use the Past Weather API
+          $new_request_response = weather_make_request($form_state, 'past');
+        }
+        else {
+          // Is yesterday in the future or nearer than 2 before now? If yes, use the Current Weather API
+          $new_request_response = weather_make_request($form_state, 'future');
+        }
+        $tomorrow_image = theme('image', array(
+          'path' => $new_request_response['data']['weather'][0]['hourly'][0]['weatherIconUrl'][0]['value'],
+          'attributes' => NULL
+        ));
+        $tomorrow_sunrise = $new_request_response['data']['weather'][0]['astronomy'][0]['sunrise'];
+        $tomorrow_sunset = $new_request_response['data']['weather'][0]['astronomy'][0]['sunset'];
+        $hours_of_daylight = calculate_hours_daylight_v($tomorrow_sunrise, $tomorrow_sunset);
+        $hours_of_daylight_formatted = gmdate("G", $hours_of_daylight) . ' hours and ' . gmdate("i", $hours_of_daylight) . ' minutes';
+      }
+      $block['subject'] = t('Tomorrow\'s ' . menu_get_object()->title . '<br />(' . format_date($tomorrow, 'custom', 'd/m/Y') . ')');
+      $block['content'] = array(
+        '#markup' => $tomorrow_image . '<br />Sunrise: ' . $tomorrow_sunrise . '<br />
+                    Sunset: ' . $tomorrow_sunset . '<br />
+                    Hours of daylight: ' . $hours_of_daylight_formatted,
+      );
       break;
   }
 
@@ -235,8 +319,6 @@ function weather_make_request(&$form_state, $past_or_future) {
   $options .= "&key=" . $api_key;
 
   $options .= "&num_of_days=" . $days_to_forecast;
-
-  $date_selection = $date_selection;
 
   if ($date_selection == 0) {
     // Today
@@ -285,8 +367,6 @@ function weather_make_request(&$form_state, $past_or_future) {
 
   $response['options_cache_id'] = $cache_options;
 
-  krumo($response);
-
   return $response;
 }
 
@@ -302,5 +382,9 @@ function calculate_hours_daylight($node_id) {
   $node = node_load($node_id);
   $sunrise = $node->field_sunrise[LANGUAGE_NONE][0]['value'];
   $sunset = $node->field_sunset[LANGUAGE_NONE][0]['value'];
+  return strtotime($sunset) - strtotime($sunrise);
+}
+
+function calculate_hours_daylight_v($sunrise, $sunset) {
   return strtotime($sunset) - strtotime($sunrise);
 }
