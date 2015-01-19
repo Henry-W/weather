@@ -19,7 +19,7 @@ function weather_saved_forecasts() {
       array_push($rows, array(
         $term_name,
         $node_data->field_date['und'][0]['value'],
-        "<a href='" . $GLOBALS['base_url'] . "/weather/single/" . $node . "'>View More</a>",
+        "<a href='" . $GLOBALS['base_url'] . "/node/" . $node . "'>View More</a>",
       ));
     }
 

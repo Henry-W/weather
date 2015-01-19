@@ -18,7 +18,7 @@ function weather_menu() {
     'title' => 'Weather Submission Form',
     'page callback' => 'weather_submission_form',
     'file' => 'includes/weather.form.inc',
-    'access arguments' => array('administer site configuration'),
+    'access arguments' => array('access content'),
   );
 
   $items['weather/results/%'] = array(
@@ -26,7 +26,7 @@ function weather_menu() {
     'page callback' => 'weather_results_show',
     'page arguments' => array(2),
     'file' => 'includes/weather.results.inc',
-    'access arguments' => array('administer site configuration'),
+    'access arguments' => array('access content'),
     'type' => MENU_NORMAL_ITEM,
   );
 
@@ -34,7 +34,7 @@ function weather_menu() {
     'title' => 'Weather Forecasts',
     'page callback' => 'weather_saved_forecasts',
     'file' => 'includes/weather.saved.inc',
-    'access arguments' => array('administer site configuration'),
+    'access arguments' => array('access content'),
   );
 
   $items['weather/single/%'] = array(
@@ -42,7 +42,7 @@ function weather_menu() {
     'page callback' => 'weather_forecast_single',
     'page arguments' => array(2),
     'file' => 'includes/weather.single.inc',
-    'access arguments' => array('administer site configuration'),
+    'access arguments' => array('access content'),
   );
 
   return $items;
