@@ -3,12 +3,10 @@
 /*
  * Implements hook_admin().
  */
-function weather_admin_settings_form($form, &$form_state) {
+function weather_admin_settings_form($form) {
   if (empty(variable_get('weather_api_url_field')) || empty(variable_get('weather_api_key_field'))) {
     drupal_set_message(t('This module will not function correctly if you have not completed the fields below:'), 'warning');
   }
-
-  $form = array();
 
   $form['weather_api_url_field'] = array(
     '#type' => 'textfield',

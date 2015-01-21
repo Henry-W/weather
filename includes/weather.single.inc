@@ -19,7 +19,6 @@ function weather_forecast_single($node_id) {
     ));
 
 
-
   $cc_table = array(
     'header' => array(t('Name'), t('Value from Resultset')),
     'rows' => array(

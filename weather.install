@@ -25,21 +25,21 @@ function weather_install() {
   }
 
   // Install our custom block visibility settings per node type
-  $query = db_insert('block_node_type')
+  $query_insert_weather_yesterday_visibility = db_insert('block_node_type')
     ->fields(array('type', 'module', 'delta'))
     ->values(array(
       'type' => 'weather_log_entry',
       'module' => 'weather', // My module name
       'delta' => 'weather_yesterday', // Same delta used in hook_block_info
-    ))
-    ->execute();
+    ));
+  $query_insert_weather_yesterday_visibility->execute();
 
-  $query = db_insert('block_node_type')
+  $query_insert_weather_tomorrow_visibility = db_insert('block_node_type')
     ->fields(array('type', 'module', 'delta'))
     ->values(array(
       'type' => 'weather_log_entry',
       'module' => 'weather', // My module name
       'delta' => 'weather_tomorrow', // Same delta used in hook_block_info
-    ))
-    ->execute();
+    ));
+  $query_insert_weather_tomorrow_visibility->execute();
 }
