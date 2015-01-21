@@ -162,7 +162,7 @@ function weather_submission_form_func_submit($form, &$form_state) {
           $node_data = node_load($eachnode);
           $term_retrieve_by_name = taxonomy_get_term_by_name($form_state['values']['weather_town_city']);
           $term_retrieve = array_shift($term_retrieve_by_name);
-          if ($node_data->field_date['und'][0]['value'] == $node->field_date[$node->language][0]['value'] && $node_data->field_location['und'][0]['tid'] == $term_retrieve->tid) {
+          if ($node_data->field_date[LANGUAGE_NONE][0]['value'] == $node->field_date[$node->language][0]['value'] && $node_data->field_location[LANGUAGE_NONE][0]['tid'] == $term_retrieve->tid) {
             $already_exists = TRUE;
           }
         }

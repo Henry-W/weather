@@ -18,7 +18,7 @@ function weather_saved_forecasts() {
 
       array_push($rows, array(
         $term_name,
-        $node_data->field_date['und'][0]['value'],
+        $node_data->field_date[LANGUAGE_NONE][0]['value'],
         "<a href='" . $GLOBALS['base_url'] . "/node/" . $node . "'>View More</a>",
       ));
     }

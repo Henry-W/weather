@@ -16,20 +16,20 @@ function weather_forecast_single($node_id) {
       // Simple row
       array(
         'Location',
-        taxonomy_term_load($node_data->field_location['und'][0]['tid'])->name,
+        taxonomy_term_load($node_data->field_location[LANGUAGE_NONE][0]['tid'])->name,
       ),
       array(
         'Date',
-        $node_data->field_date['und'][0]['value']
+        $node_data->field_date[LANGUAGE_NONE][0]['value']
       ),
       array(
         'Description',
-        $node_data->body['und'][0]['value']
+        $node_data->body[LANGUAGE_NONE][0]['value']
       ),
       array(
         'Icon',
         theme('image', array(
-          'path' => $node_data->field_weather_icon['und'][0]['uri'],
+          'path' => $node_data->field_weather_icon[LANGUAGE_NONE][0]['uri'],
           'attributes' => NULL
         )),
       ),
