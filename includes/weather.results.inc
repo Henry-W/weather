@@ -13,22 +13,22 @@ function weather_results_show($cache_id) {
       'rows' => array(
         // Simple row
         array(
-          'Description',
+          t('Description'),
           $response['data']['current_condition'][0]['weatherDesc'][0]['value']
         ),
         array(
-          'Icon',
+          t('Icon'),
           theme('image', array(
             'path' => $response['data']['current_condition'][0]['weatherIconUrl'][0]['value'],
             'attributes' => NULL
           )),
         ),
         array(
-          'Temperature (C)',
+          t('Temperature (C)'),
           $response['data']['current_condition'][0]['FeelsLikeC']
         ),
         array(
-          'Observation Time',
+          t('Observation Time'),
           $response['data']['current_condition'][0]['observation_time']
         )
       ),
@@ -55,7 +55,10 @@ function weather_results_show($cache_id) {
       'header' => array(t('Date'), t('Min temp (C)'), t('Max temp (C)')),
       'rows' => $rows,
       'attributes' => array(),
-      'caption' => t('Forecast from (' . date("d/m/y", strtotime($response['data']['weather'][0]['date'])) . ') to (' . date("d/m/y", strtotime($response['data']['weather'][count($response['data']['weather']) - 1]['date'])) . ')'),
+      'caption' => t("Forecast from @first_date to @last_date", array(
+        '@first_date' => date("d/m/y", strtotime($response['data']['weather'][0]['date'])),
+        '@last_date' => date("d/m/y", strtotime($response['data']['weather'][count($response['data']['weather']) - 1]['date']))
+      )),
       'colgroups' => array(),
       'sticky' => FALSE,
       'empty' => '',
@@ -123,5 +126,6 @@ function weather_results_show($cache_id) {
   else {
     // Redirect 404
     drupal_not_found();
+    return FALSE;
   }
 }

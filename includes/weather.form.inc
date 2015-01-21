@@ -7,14 +7,13 @@ function weather_submission_form() {
   return drupal_get_form('weather_submission_form_func');
 }
 
-function weather_submission_form_func($form, &$form_state) {
-  $form = array();
+function weather_submission_form_func($form) {
 
   $form['weather_town_city'] = array(
     '#type' => 'textfield',
     '#title' => t('Town/City'),
     '#required' => TRUE,
-    '#default_value' => 'Vauxhall',
+    '#default_value' => t('Vauxhall'),
   );
 
   $weather_date_options = array(
@@ -41,7 +40,7 @@ function weather_submission_form_func($form, &$form_state) {
     '#type' => 'textfield',
     '#title' => t('Days to forecast'),
     '#required' => TRUE,
-    '#default_value' => '5',
+    '#default_value' => t('5'),
     '#element_validate' => array('element_validate_integer_positive'),
   );
 
@@ -73,7 +72,7 @@ function weather_submission_form_func($form, &$form_state) {
 
   $form['submit'] = array(
     '#type' => 'submit',
-    '#value' => 'Submit',
+    '#value' => t('Submit'),
   );
 
   $form['#attached']['css'] = array(
@@ -88,7 +87,7 @@ function weather_submission_form_func($form, &$form_state) {
   return $form;
 }
 
-function weather_submission_form_func_submit($form, &$form_state) {
+function weather_submission_form_func_submit(&$form_state) {
 
   $decoded_response = weather_make_request($form_state, 'future');
 
@@ -97,10 +96,16 @@ function weather_submission_form_func_submit($form, &$form_state) {
     for ($i = 0; $i < count($decoded_response['data']['weather']); $i++) {
       $node = new stdClass();
       $node->type = 'weather_log_entry';
-      $node->title = "Weather for " . $decoded_response['data']['request'][0]['query'];
+      $node->title = t("Weather for @location", array('@location' => $decoded_response['data']['request'][0]['query']));
       $node->language = LANGUAGE_NONE;
       // Weather Summary
-      $node->body[$node->language][0]['value'] = "On " . $decoded_response['data']['weather'][$i]['date'] . " the temperature for " . $decoded_response['data']['request'][0]['query'] . "; As low as " . $decoded_response['data']['weather'][$i]['mintempC'] . " (C) and as high as " . $decoded_response['data']['weather'][$i]['maxtempC'] . " (C)";
+      $node->body[$node->language][0]['value'] = t("On @date the temperature for @location; As low as @mintempC (C) and as high as @maxtempC (C)",
+        array(
+          '@date' => $decoded_response['data']['weather'][$i]['date'],
+          '@location' => $decoded_response['data']['request'][0]['query'],
+          '@mintempC' => $decoded_response['data']['weather'][$i]['mintempC'],
+          '@maxtempC' => $decoded_response['data']['weather'][$i]['maxtempC']
+        ));
       // Weather Icon
       $external_image_path = $decoded_response['data']['weather'][$i]['hourly'][0]['weatherIconUrl'][0]['value'];
       $image = file_get_contents_curl($external_image_path); // string
@@ -119,14 +124,14 @@ function weather_submission_form_func_submit($form, &$form_state) {
         if ($search_terms) {
           // Term already exists, but from which vocabulary??
           foreach ($search_terms as $term) {
-            if ($term->vid == 2) {
+            if ($term->vid == taxonomy_vocabulary_machine_name_load('locations')->vid) {
               $node->field_location[$node->language][]['tid'] = $term->tid;
               $term_boolean = TRUE;
             }
             else {
               // Term exists for wrong vocabulary, make a new one for this one:
               $existing_term_new_vocab = array(
-                'vid' => 2,
+                'vid' => taxonomy_vocabulary_machine_name_load('locations')->vid,
                 'name' => $form_state['values']['weather_town_city'],
                 // You can optionally also set id of parent term, e.g. 'parent' => 25
               );
@@ -139,7 +144,7 @@ function weather_submission_form_func_submit($form, &$form_state) {
         else {
           // Term does not already exist, make a new one:
           $new_term = array(
-            'vid' => 2,
+            'vid' => taxonomy_vocabulary_machine_name_load('locations')->vid,
             'name' => $form_state['values']['weather_town_city'],
             // You can optionally also set id of parent term, e.g. 'parent' => 25
           );
@@ -156,7 +161,7 @@ function weather_submission_form_func_submit($form, &$form_state) {
       // Verify not already saved
       $already_exists = FALSE;
 
-      foreach (taxonomy_get_tree(2) as $term) {
+      foreach (taxonomy_get_tree(taxonomy_vocabulary_machine_name_load('locations')->vid) as $term) {
 
         foreach (array_reverse(taxonomy_select_nodes($term->tid)) as $eachnode) {
           $node_data = node_load($eachnode);
@@ -175,17 +180,27 @@ function weather_submission_form_func_submit($form, &$form_state) {
       if ($already_exists == FALSE) {
         if ($node = node_submit($node)) { // Prepare node for saving
           node_save($node);
-          drupal_set_message(t('The forecast for ' . $term_retrieve->name . ' on ' . $node->field_date[$node->language][0]['value'] . ' has successfully been saved.'), 'status');
+          drupal_set_message(t("The forecast for @weather_location on @node-field_date has successfully been saved.",
+            array(
+              '@weather_location' => $form_state['values']['weather_town_city'],
+              '@node-field_date' => $node->field_date[$node->language][0]['value']
+            )), 'status');
         }
       }
       else {
-        drupal_set_message(t('The forecast for ' . $term_retrieve->name . ' on ' . $node->field_date[$node->language][0]['value'] . ' could not be saved since it has already been saved before.'), 'error');
+        drupal_set_message(t("The forecast for @weather_location on @node-field_date could not be saved since it has already been saved before.",
+          array(
+            '@weather_location' => $form_state['values']['weather_town_city'],
+            '@node-field_date' => $node->field_date[$node->language][0]['value']
+          )), 'error');
       }
     }
 
   }
 
-  drupal_goto($GLOBALS['base_url'] . '/weather/results/' . $decoded_response['options_cache_id']);
+  global $base_url;
+
+  drupal_goto($base_url . '/weather/results/' . $decoded_response['options_cache_id']);
 
 }
 
@@ -205,7 +220,7 @@ function file_get_contents_curl($url) {
   return $data;
 }
 
-function weather_limit_years_in_date_callback($form, &$form_state) {
+function weather_limit_years_in_date_callback(&$form_state) {
   $input_date = strtotime($form_state['values']['weather_date_custom']['day'] . '-' . $form_state['values']['weather_date_custom']['month'] . '-' . $form_state['values']['weather_date_custom']['year']);
   if ($input_date > strtotime("+4 days")) {
     form_set_error('weather_date_custom', t('You can only enter a date between now and the next 4 days.'));

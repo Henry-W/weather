@@ -7,7 +7,7 @@ function weather_menu() {
   $items = array();
 
   $items['admin/config/content/weather/settings'] = array(
-    'title' => 'Weather Module Settings',
+    'title' => t('Weather Module Settings'),
     'page callback' => 'drupal_get_form',
     'page arguments' => array('weather_admin_settings_form'),
     'file' => 'includes/weather.admin.inc',
@@ -15,14 +15,14 @@ function weather_menu() {
   );
 
   $items['weather/form'] = array(
-    'title' => 'Weather Submission Form',
+    'title' => t('Weather Submission Form'),
     'page callback' => 'weather_submission_form',
     'file' => 'includes/weather.form.inc',
     'access arguments' => array('access content'),
   );
 
   $items['weather/results/%'] = array(
-    'title' => 'Weather Results',
+    'title' => t('Weather Results'),
     'page callback' => 'weather_results_show',
     'page arguments' => array(2),
     'file' => 'includes/weather.results.inc',
@@ -31,14 +31,14 @@ function weather_menu() {
   );
 
   $items['weather/saved'] = array(
-    'title' => 'Weather Forecasts',
+    'title' => t('Weather Forecasts'),
     'page callback' => 'weather_saved_forecasts',
     'file' => 'includes/weather.saved.inc',
     'access arguments' => array('access content'),
   );
 
   $items['weather/single/%'] = array(
-    'title' => 'Weather Forecast',
+    'title' => t('Weather Forecast'),
     'page callback' => 'weather_forecast_single',
     'page arguments' => array(2),
     'file' => 'includes/weather.single.inc',
@@ -73,10 +73,8 @@ function weather_node_info() {
     'weather_log_entry' => array(
       'name' => t('Weather Log Entry'),
       'base' => 'node_content',
-      'description' => '',
       'has_title' => '1',
       'title_label' => t('Title'),
-      'help' => '',
     ),
   );
   return $items;
@@ -90,12 +88,16 @@ function weather_node_view($node) {
   $sunrise = $node->field_sunrise[LANGUAGE_NONE][0]['value'];
   $sunset = $node->field_sunset[LANGUAGE_NONE][0]['value'];
   $hours_diff = strtotime($sunset) - strtotime($sunrise);
-  $hours_of_daylight = gmdate('G', $hours_diff) . " hours and " . gmdate('i', $hours_diff) . " minutes";
+  $hours_of_daylight = t("@hours hours and @minutes minutes",
+    array(
+      '@hours' => gmdate("G", $hours_diff),
+      '@minutes' => gmdate("i", $hours_diff)
+    ));
 
   $node->content['hours_of_daylight'] = array(
     '#type' => 'markup',
     '#markup' => $hours_of_daylight,
-    '#title' => 'Hours of daylight',
+    '#title' => t('Hours of daylight'),
   );
 
 }
@@ -106,27 +108,17 @@ function weather_node_view($node) {
 function weather_block_info() {
   $blocks['weather_yesterday'] = array(
     'info' => t('Weather Module Yesterday'),
-    'status' => 1
+    'status' => 1,
+    'region' => 'sidebar_second'
   );
 
   $blocks['weather_tomorrow'] = array(
     'info' => t('Weather Module Tomorrow'),
-    'status' => 1
+    'status' => 1,
+    'region' => 'sidebar_second'
   );
 
   return $blocks;
-}
-
-/**
- * Implements hook_block_info_alter().
- */
-function weather_block_info_alter(&$blocks, $theme, $code_blocks) {
-  if (isset($blocks['weather']['weather_yesterday'])) {
-    $blocks['weather']['weather_yesterday']['region'] = 'sidebar_second';
-  }
-  if (isset($blocks['weather']['weather_tomorrow'])) {
-    $blocks['weather']['weather_tomorrow']['region'] = 'sidebar_second';
-  }
 }
 
 /*
@@ -135,10 +127,11 @@ function weather_block_info_alter(&$blocks, $theme, $code_blocks) {
 function weather_block_view($delta = '') {
   // This example is adapted from node.module.
   $block = array();
+  $node_data = menu_get_object();
 
   switch ($delta) {
     case 'weather_yesterday':
-      $today_date = menu_get_object()->field_date[LANGUAGE_NONE][0]['value'];
+      $today_date = $node_data->field_date[LANGUAGE_NONE][0]['value'];
 
       $yesterday = strtotime("-1 day", strtotime(get_date_hyphen($today_date)));
 
@@ -149,7 +142,7 @@ function weather_block_view($delta = '') {
       $yesterday_query->entityCondition('entity_type', 'node')
         ->entityCondition('bundle', 'weather_log_entry')
         ->fieldCondition('field_date', 'value', format_date($yesterday, 'custom', 'd/m/Y'), '=')
-        ->fieldCondition('field_location', 'tid', menu_get_object()->field_location[LANGUAGE_NONE][0]['tid'], '=');
+        ->fieldCondition('field_location', 'tid', $node_data->field_location[LANGUAGE_NONE][0]['tid'], '=');
 
       $yesterday_query_result = $yesterday_query->execute();
 
@@ -161,8 +154,12 @@ function weather_block_view($delta = '') {
         $yesterday_node_data = node_load($yesterday_node_id);
 
         $hours_of_daylight = calculate_hours_daylight($yesterday_node_id);
+        $hours_of_daylight_formatted = t("@hours hours and @minutes minutes",
+          array(
+            '@hours' => gmdate("G", $hours_of_daylight),
+            '@minutes' => gmdate("i", $hours_of_daylight)
+          ));
 
-        $hours_of_daylight_formatted = gmdate("G", $hours_of_daylight) . ' hours and ' . gmdate("i", $hours_of_daylight) . ' minutes';
         $yesterday_image = theme('image', array(
           'path' => $yesterday_node_data->field_weather_icon[LANGUAGE_NONE][0]['uri'],
           'attributes' => NULL
@@ -173,8 +170,10 @@ function weather_block_view($delta = '') {
       else {
         // We need to create a request - Since yesterday has not been stored
         $form_state = array();
-        $current_node_loc_tid = menu_get_object()->field_location[LANGUAGE_NONE][0]['tid'];
-        $form_state['values']['weather_town_city'] = taxonomy_term_load($current_node_loc_tid)->name;
+        $current_node_location = taxonomy_term_load($node_data->field_location[LANGUAGE_NONE][0]['tid']);
+        if (isset($current_node_location->name)) {
+          $form_state['values']['weather_town_city'] = $current_node_location->name;
+        }
         $form_state['values']['weather_days_forecast'] = 1;
         $form_state['values']['weather_date'] = 2;
         $form_state['values']['weather_date_custom']['year'] = format_date($yesterday, 'custom', 'Y');
@@ -202,18 +201,26 @@ function weather_block_view($delta = '') {
         $yesterday_sunrise = $new_request_response['data']['weather'][0]['astronomy'][0]['sunrise'];
         $yesterday_sunset = $new_request_response['data']['weather'][0]['astronomy'][0]['sunset'];
         $hours_of_daylight = calculate_hours_daylight_v($yesterday_sunrise, $yesterday_sunset);
-        $hours_of_daylight_formatted = gmdate("G", $hours_of_daylight) . ' hours and ' . gmdate("i", $hours_of_daylight) . ' minutes';
+        $hours_of_daylight_formatted = t("@hours hours and @minutes minutes",
+          array(
+            '@hours' => gmdate("G", $hours_of_daylight),
+            '@minutes' => gmdate("i", $hours_of_daylight)
+          ));
       }
-
-      $block['subject'] = t('Yesterday\'s ' . menu_get_object()->title . ' (' . format_date($yesterday, 'custom', 'd/m/Y') . ')');
+      $block['subject'] = t("Yesterday's @title (@date)",
+        array(
+          '@title' => $node_data->title,
+          '@date' => format_date($yesterday, 'custom', 'd/m/Y')
+        ));
       $block['content'] = array(
-        '#markup' => $yesterday_image . '<br />Sunrise: ' . $yesterday_sunrise . '<br />
-                    Sunset: ' . $yesterday_sunset . '<br />
-                    Hours of daylight: ' . $hours_of_daylight_formatted,
+        '#markup' => $yesterday_image . "<br />"
+          . t('Sunrise:') . " " . $yesterday_sunrise . "<br />"
+          . t('Sunset:') . " " . $yesterday_sunset . "<br />"
+          . t('Hours of daylight: @hours_of_daylight', array('@hours_of_daylight' => $hours_of_daylight_formatted))
       );
       break;
     case 'weather_tomorrow':
-      $today_date = menu_get_object()->field_date[LANGUAGE_NONE][0]['value'];
+      $today_date = $node_data->field_date[LANGUAGE_NONE][0]['value'];
 
       $tomorrow = strtotime("+1 day", strtotime(get_date_hyphen($today_date)));
 
@@ -224,7 +231,7 @@ function weather_block_view($delta = '') {
       $tomorrow_query->entityCondition('entity_type', 'node')
         ->entityCondition('bundle', 'weather_log_entry')
         ->fieldCondition('field_date', 'value', format_date($tomorrow, 'custom', 'd/m/Y'), '=')
-        ->fieldCondition('field_location', 'tid', menu_get_object()->field_location[LANGUAGE_NONE][0]['tid'], '=');
+        ->fieldCondition('field_location', 'tid', $node_data->field_location[LANGUAGE_NONE][0]['tid'], '=');
 
       $tomorrow_query_result = $tomorrow_query->execute();
 
@@ -237,7 +244,6 @@ function weather_block_view($delta = '') {
 
         $hours_of_daylight = calculate_hours_daylight($tomorrow_node_id);
 
-        $hours_of_daylight_formatted = gmdate("G", $hours_of_daylight) . ' hours and ' . gmdate("i", $hours_of_daylight) . ' minutes';
         $tomorrow_image = theme('image', array(
           'path' => $tomorrow_node_data->field_weather_icon[LANGUAGE_NONE][0]['uri'],
           'attributes' => NULL
@@ -248,8 +254,10 @@ function weather_block_view($delta = '') {
       else {
         // We need to create a request - Since yesterday has not been stored
         $form_state = array();
-        $current_node_loc_tid = menu_get_object()->field_location[LANGUAGE_NONE][0]['tid'];
-        $form_state['values']['weather_town_city'] = taxonomy_term_load($current_node_loc_tid)->name;
+        $current_node_location = taxonomy_term_load($node_data->field_location[LANGUAGE_NONE][0]['tid']);
+        if (isset($current_node_location->name)) {
+          $form_state['values']['weather_town_city'] = $current_node_location->name;
+        }
         $form_state['values']['weather_days_forecast'] = 1;
         $form_state['values']['weather_date'] = 2;
         $form_state['values']['weather_date_custom']['year'] = format_date($tomorrow, 'custom', 'Y');
@@ -277,13 +285,22 @@ function weather_block_view($delta = '') {
         $tomorrow_sunrise = $new_request_response['data']['weather'][0]['astronomy'][0]['sunrise'];
         $tomorrow_sunset = $new_request_response['data']['weather'][0]['astronomy'][0]['sunset'];
         $hours_of_daylight = calculate_hours_daylight_v($tomorrow_sunrise, $tomorrow_sunset);
-        $hours_of_daylight_formatted = gmdate("G", $hours_of_daylight) . ' hours and ' . gmdate("i", $hours_of_daylight) . ' minutes';
       }
-      $block['subject'] = t('Tomorrow\'s ' . menu_get_object()->title . '<br />(' . format_date($tomorrow, 'custom', 'd/m/Y') . ')');
+      $block['subject'] = t("Tomorrow's @title (@date)",
+        array(
+          '@title' => $node_data->title,
+          '@date' => format_date($tomorrow, 'custom', 'd/m/Y')
+        ));
+      $hours_of_daylight_formatted = t("@hours hours and @minutes minutes",
+        array(
+          '@hours' => gmdate("G", $hours_of_daylight),
+          '@minutes' => gmdate("i", $hours_of_daylight)
+        ));
       $block['content'] = array(
-        '#markup' => $tomorrow_image . '<br />Sunrise: ' . $tomorrow_sunrise . '<br />
-                    Sunset: ' . $tomorrow_sunset . '<br />
-                    Hours of daylight: ' . $hours_of_daylight_formatted,
+        '#markup' => $tomorrow_image . "<br />"
+          . t('Sunrise:') . " " . $tomorrow_sunrise . "<br />"
+          . t('Sunset:') . " " . $tomorrow_sunset . "<br />"
+          . t('Hours of daylight: @hours_of_daylight', array('@hours_of_daylight' => $hours_of_daylight_formatted))
       );
       break;
   }
