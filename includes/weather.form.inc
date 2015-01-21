@@ -19,7 +19,7 @@ function weather_submission_form_func($form) {
   $weather_date_options = array(
     0 => t('Today'),
     1 => t('Tomorrow'),
-    2 => t('Enter Date')
+    2 => t('Enter Date'),
   );
 
   $form['weather_date'] = array(
@@ -104,7 +104,7 @@ function weather_submission_form_func_submit(&$form_state) {
           '@date' => $decoded_response['data']['weather'][$i]['date'],
           '@location' => $decoded_response['data']['request'][0]['query'],
           '@mintempC' => $decoded_response['data']['weather'][$i]['mintempC'],
-          '@maxtempC' => $decoded_response['data']['weather'][$i]['maxtempC']
+          '@maxtempC' => $decoded_response['data']['weather'][$i]['maxtempC'],
         ));
       // Weather Icon
       $external_image_path = $decoded_response['data']['weather'][$i]['hourly'][0]['weatherIconUrl'][0]['value'];
@@ -163,8 +163,8 @@ function weather_submission_form_func_submit(&$form_state) {
 
       foreach (taxonomy_get_tree(taxonomy_vocabulary_machine_name_load('locations')->vid) as $term) {
 
-        foreach (array_reverse(taxonomy_select_nodes($term->tid)) as $eachnode) {
-          $node_data = node_load($eachnode);
+        foreach (array_reverse(taxonomy_select_nodes($term->tid)) as $each_node) {
+          $node_data = node_load($each_node);
           $term_retrieve_by_name = taxonomy_get_term_by_name($form_state['values']['weather_town_city']);
           $term_retrieve = array_shift($term_retrieve_by_name);
           if ($node_data->field_date[LANGUAGE_NONE][0]['value'] == $node->field_date[$node->language][0]['value'] && $node_data->field_location[LANGUAGE_NONE][0]['tid'] == $term_retrieve->tid) {
@@ -183,7 +183,7 @@ function weather_submission_form_func_submit(&$form_state) {
           drupal_set_message(t("The forecast for @weather_location on @node-field_date has successfully been saved.",
             array(
               '@weather_location' => $form_state['values']['weather_town_city'],
-              '@node-field_date' => $node->field_date[$node->language][0]['value']
+              '@node-field_date' => $node->field_date[$node->language][0]['value'],
             )), 'status');
         }
       }
@@ -191,7 +191,7 @@ function weather_submission_form_func_submit(&$form_state) {
         drupal_set_message(t("The forecast for @weather_location on @node-field_date could not be saved since it has already been saved before.",
           array(
             '@weather_location' => $form_state['values']['weather_town_city'],
-            '@node-field_date' => $node->field_date[$node->language][0]['value']
+            '@node-field_date' => $node->field_date[$node->language][0]['value'],
           )), 'error');
       }
     }

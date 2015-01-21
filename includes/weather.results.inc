@@ -14,22 +14,22 @@ function weather_results_show($cache_id) {
         // Simple row
         array(
           t('Description'),
-          $response['data']['current_condition'][0]['weatherDesc'][0]['value']
+          $response['data']['current_condition'][0]['weatherDesc'][0]['value'],
         ),
         array(
           t('Icon'),
           theme('image', array(
             'path' => $response['data']['current_condition'][0]['weatherIconUrl'][0]['value'],
-            'attributes' => NULL
+            'attributes' => NULL,
           )),
         ),
         array(
           t('Temperature (C)'),
-          $response['data']['current_condition'][0]['FeelsLikeC']
+          $response['data']['current_condition'][0]['FeelsLikeC'],
         ),
         array(
           t('Observation Time'),
-          $response['data']['current_condition'][0]['observation_time']
+          $response['data']['current_condition'][0]['observation_time'],
         )
       ),
       'attributes' => array(),
@@ -47,17 +47,17 @@ function weather_results_show($cache_id) {
         array(
           date("d/m/y", strtotime($response['data']['weather'][$i]['date'])),
           $response['data']['weather'][$i]['mintempC'],
-          $response['data']['weather'][$i]['maxtempC']
+          $response['data']['weather'][$i]['maxtempC'],
         ));
     }
 
     $forecast_table = array(
-      'header' => array(t('Date'), t('Min temp (C)'), t('Max temp (C)')),
+      'header' => array(t('Date'), t('Min temp (C)'), t('Max temp (C)'),),
       'rows' => $rows,
       'attributes' => array(),
       'caption' => t("Forecast from @first_date to @last_date", array(
         '@first_date' => date("d/m/y", strtotime($response['data']['weather'][0]['date'])),
-        '@last_date' => date("d/m/y", strtotime($response['data']['weather'][count($response['data']['weather']) - 1]['date']))
+        '@last_date' => date("d/m/y", strtotime($response['data']['weather'][count($response['data']['weather']) - 1]['date'])),
       )),
       'colgroups' => array(),
       'sticky' => FALSE,
@@ -93,7 +93,7 @@ function weather_results_show($cache_id) {
       foreach ($variables['hourly'] as $hour) {
         $hour['weather_image'] = theme('image', array(
           'path' => $hour['weatherIconUrl'][0]['value'],
-          'attributes' => NULL
+          'attributes' => NULL,
         ));
         if (strlen($hour['time']) < 4 && strlen($hour['time']) > 1) {
           $hour['time'] = '0' . $hour['time'];

@@ -15,12 +15,12 @@ function weather_forecast_single($node_id) {
   $hours_of_daylight = t("@hours hours and @minutes minutes",
     array(
       '@hours' => gmdate("G", $hours_diff),
-      '@minutes' => gmdate("i", $hours_diff)
+      '@minutes' => gmdate("i", $hours_diff),
     ));
 
 
   $cc_table = array(
-    'header' => array(t('Name'), t('Value from Resultset')),
+    'header' => array(t('Name'), t('Value from Resultset'),),
     'rows' => array(
       // Simple row
       array(
@@ -29,35 +29,35 @@ function weather_forecast_single($node_id) {
       ),
       array(
         t('Date'),
-        $node_data->field_date[LANGUAGE_NONE][0]['value']
+        $node_data->field_date[LANGUAGE_NONE][0]['value'],
       ),
       array(
         t('Description'),
-        $node_data->body[LANGUAGE_NONE][0]['value']
+        $node_data->body[LANGUAGE_NONE][0]['value'],
       ),
       array(
         t('Icon'),
         theme('image', array(
           'path' => $node_data->field_weather_icon[LANGUAGE_NONE][0]['uri'],
-          'attributes' => NULL
+          'attributes' => NULL,
         )),
       ),
       array(
         t('Sunrise'),
-        $sunrise
+        $sunrise,
       ),
       array(
         t('Sunset'),
-        $sunset
+        $sunset,
       ),
       array(
         t('Total Hours of Daylight'),
-        $hours_of_daylight
+        $hours_of_daylight,
       ),
       array(
         t('Time Forecast Received'),
         format_date($node_data->created, 'custom', 'h:m A'),
-      )
+      ),
     ),
     'attributes' => array(),
     'caption' => t('Forecast Details'),

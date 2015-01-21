@@ -91,7 +91,7 @@ function weather_node_view($node) {
   $hours_of_daylight = t("@hours hours and @minutes minutes",
     array(
       '@hours' => gmdate("G", $hours_diff),
-      '@minutes' => gmdate("i", $hours_diff)
+      '@minutes' => gmdate("i", $hours_diff),
     ));
 
   $node->content['hours_of_daylight'] = array(
@@ -109,13 +109,13 @@ function weather_block_info() {
   $blocks['weather_yesterday'] = array(
     'info' => t('Weather Module Yesterday'),
     'status' => 1,
-    'region' => 'sidebar_second'
+    'region' => 'sidebar_second',
   );
 
   $blocks['weather_tomorrow'] = array(
     'info' => t('Weather Module Tomorrow'),
     'status' => 1,
-    'region' => 'sidebar_second'
+    'region' => 'sidebar_second',
   );
 
   return $blocks;
@@ -157,12 +157,12 @@ function weather_block_view($delta = '') {
         $hours_of_daylight_formatted = t("@hours hours and @minutes minutes",
           array(
             '@hours' => gmdate("G", $hours_of_daylight),
-            '@minutes' => gmdate("i", $hours_of_daylight)
+            '@minutes' => gmdate("i", $hours_of_daylight),
           ));
 
         $yesterday_image = theme('image', array(
           'path' => $yesterday_node_data->field_weather_icon[LANGUAGE_NONE][0]['uri'],
-          'attributes' => NULL
+          'attributes' => NULL,
         ));
         $yesterday_sunrise = $yesterday_node_data->field_sunrise[LANGUAGE_NONE][0]['value'];
         $yesterday_sunset = $yesterday_node_data->field_sunset[LANGUAGE_NONE][0]['value'];
@@ -196,7 +196,7 @@ function weather_block_view($delta = '') {
         }
         $yesterday_image = theme('image', array(
           'path' => $new_request_response['data']['weather'][0]['hourly'][0]['weatherIconUrl'][0]['value'],
-          'attributes' => NULL
+          'attributes' => NULL,
         ));
         $yesterday_sunrise = $new_request_response['data']['weather'][0]['astronomy'][0]['sunrise'];
         $yesterday_sunset = $new_request_response['data']['weather'][0]['astronomy'][0]['sunset'];
@@ -204,13 +204,13 @@ function weather_block_view($delta = '') {
         $hours_of_daylight_formatted = t("@hours hours and @minutes minutes",
           array(
             '@hours' => gmdate("G", $hours_of_daylight),
-            '@minutes' => gmdate("i", $hours_of_daylight)
+            '@minutes' => gmdate("i", $hours_of_daylight),
           ));
       }
       $block['subject'] = t("Yesterday's @title (@date)",
         array(
           '@title' => $node_data->title,
-          '@date' => format_date($yesterday, 'custom', 'd/m/Y')
+          '@date' => format_date($yesterday, 'custom', 'd/m/Y'),
         ));
       $block['content'] = array(
         '#markup' => $yesterday_image . "<br />"
@@ -246,7 +246,7 @@ function weather_block_view($delta = '') {
 
         $tomorrow_image = theme('image', array(
           'path' => $tomorrow_node_data->field_weather_icon[LANGUAGE_NONE][0]['uri'],
-          'attributes' => NULL
+          'attributes' => NULL,
         ));
         $tomorrow_sunrise = $tomorrow_node_data->field_sunrise[LANGUAGE_NONE][0]['value'];
         $tomorrow_sunset = $tomorrow_node_data->field_sunset[LANGUAGE_NONE][0]['value'];
@@ -280,7 +280,7 @@ function weather_block_view($delta = '') {
         }
         $tomorrow_image = theme('image', array(
           'path' => $new_request_response['data']['weather'][0]['hourly'][0]['weatherIconUrl'][0]['value'],
-          'attributes' => NULL
+          'attributes' => NULL,
         ));
         $tomorrow_sunrise = $new_request_response['data']['weather'][0]['astronomy'][0]['sunrise'];
         $tomorrow_sunset = $new_request_response['data']['weather'][0]['astronomy'][0]['sunset'];
@@ -289,12 +289,12 @@ function weather_block_view($delta = '') {
       $block['subject'] = t("Tomorrow's @title (@date)",
         array(
           '@title' => $node_data->title,
-          '@date' => format_date($tomorrow, 'custom', 'd/m/Y')
+          '@date' => format_date($tomorrow, 'custom', 'd/m/Y'),
         ));
       $hours_of_daylight_formatted = t("@hours hours and @minutes minutes",
         array(
           '@hours' => gmdate("G", $hours_of_daylight),
-          '@minutes' => gmdate("i", $hours_of_daylight)
+          '@minutes' => gmdate("i", $hours_of_daylight),
         ));
       $block['content'] = array(
         '#markup' => $tomorrow_image . "<br />"
